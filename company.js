@@ -1,27 +1,21 @@
-// Company Module - لوحة إدارة الشركة
+// Company Module - Enhanced
 let companyDrivers = [];
 let companyVehicles = [];
+let companyUsers = [];
 let reportData = null;
-
-// فتح/إغلاق نافذات Modal
-function openAddDriverModal() {
-    document.getElementById('add-driver-modal').style.display = 'block';
-}
-
-function closeModal(modalId) {
-    document.getElementById(modalId).style.display = 'none';
-}
-
-// إغلاق Modal عند الضغط خارجه
-window.onclick = function(event) {
-    if (event.target.classList.contains('modal')) {
-        event.target.style.display = 'none';
-    }
-};
+let currentTenantData = null;
 
 // تحميل بيانات الشركة
 async function loadCompanyData() {
     try {
+        // تحميل بيانات الشركة الحالية
+        if (tenantId) {
+            const tenantDoc = await firestore.collection('tenants').doc(tenantId).get();
+            if (tenantDoc.exists) {
+                currentTenantData = tenantDoc.data();
+            }
+        }
+
         // تحميل السائقين الخاصين بالشركة
         database.ref('vehicleDrivers').on('value', (snapshot) => {
             if (snapshot.exists()) {
@@ -47,6 +41,15 @@ async function loadCompanyData() {
                 });
                 updateVehiclesTable();
             }
+        });
+        
+        // تحميل مستخدمي الشركة
+        firestore.collection('users').where('tenantId', '==', tenantId).onSnapshot((snapshot) => {
+            companyUsers = [];
+            snapshot.forEach(doc => {
+                companyUsers.push({ id: doc.id, ...doc.data() });
+            });
+            updateCompanyUsersTable();
         });
     } catch (error) {
         console.error('خطأ في تحميل بيانات الشركة:', error);
@@ -94,13 +97,12 @@ function updateVehiclesTable() {
         const driver = companyDrivers.find(d => d.code === vehicle.code);
         const status = vehicle.speed > 0 ? 'نشط' : 'متوقف';
         const statusColor = vehicle.speed > 0 ? '#28a745' : '#dc3545';
-        const time = new Date(vehicle.timestamp).toLocaleString('ar-EG');
         
         const html = `
             <tr>
                 <td>${vehicle.code}</td>
                 <td>مركبة</td>
-                <td>${driver ? driver.name : 'لم لحق'}</td>
+                <td>${driver ? driver.name : 'لم يلحق'}</td>
                 <td><span style="background-color: ${statusColor}; color: white; padding: 4px 8px; border-radius: 4px;">${status}</span></td>
                 <td>${vehicle.location || 'تحديث...'}</td>
                 <td>
@@ -110,6 +112,44 @@ function updateVehiclesTable() {
         `;
         tbody.innerHTML += html;
     });
+}
+
+// تحديث جدول مستخدمي الشركة
+function updateCompanyUsersTable() {
+    const tbody = document.getElementById('company-users-tbody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    
+    companyUsers.forEach(user => {
+        const createdAt = new Date(user.createdAt.toDate()).toLocaleDateString('ar-EG');
+        const status = user.active ? 'نشط' : 'معطل';
+        const statusColor = user.active ? '#28a745' : '#dc3545';
+        
+        const html = `
+            <tr>
+                <td>${user.displayName}</td>
+                <td>${user.email}</td>
+                <td>${user.role === 'company_manager' ? 'مدير الشركة' : 'عارض'}</td>
+                <td><span style="background-color: ${statusColor}; color: white; padding: 4px 8px; border-radius: 4px;">${status}</span></td>
+                <td>
+                    <button class="btn btn-sm" onclick="disableUser('${user.id}')" style="padding: 5px 10px; margin-right: 5px;">${user.active ? 'تعطيل' : 'تفعيل'}</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteCompanyUser('${user.id}')" style="padding: 5px 10px;">حذف</button>
+                </td>
+            </tr>
+        `;
+        tbody.innerHTML += html;
+    });
+}
+
+// فتح نافذة إضافة سائق
+function openAddDriverModal() {
+    document.getElementById('add-driver-modal').style.display = 'block';
+}
+
+// فتح نافذة إضافة مستخدم للشركة
+function openAddCompanyUserModal() {
+    document.getElementById('add-company-user-modal').style.display = 'block';
 }
 
 // إضافة سائق جديد
@@ -122,7 +162,7 @@ async function addDriver(event) {
     const driverId = document.getElementById('driver-id').value;
     
     if (!name || !phone || !vehicleCode || !driverId) {
-        alert('رجاءاً ملء جميع الحقول');
+        alert('رجاءً ملء جميع الحقول');
         return;
     }
     
@@ -146,7 +186,7 @@ async function addDriver(event) {
             tenantId: tenantId
         });
         
-        // إضافة إلى Firestore للنسخا الاحتياطية
+        // إضافة إلى Firestore
         await firestore.collection('drivers').doc(driverId).set({
             name: name,
             phone: phone,
@@ -161,6 +201,45 @@ async function addDriver(event) {
         document.getElementById('add-driver-form').reset();
     } catch (error) {
         console.error('خطأ في إضافة السائق:', error);
+        alert('❌ حدث خطأ: ' + error.message);
+    }
+}
+
+// إضافة مستخدم جديد للشركة
+async function addCompanyUser(event) {
+    event.preventDefault();
+    
+    const name = document.getElementById('comp-user-name').value;
+    const email = document.getElementById('comp-user-email').value;
+    const password = document.getElementById('comp-user-password').value;
+    const role = document.getElementById('comp-user-role').value;
+    
+    if (password.length < 6) {
+        alert('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+        return;
+    }
+    
+    try {
+        // إنشاء حساب في Firebase Auth
+        const result = await auth.createUserWithEmailAndPassword(email, password);
+        const user = result.user;
+        
+        // إضافة بيانات المستخدم إلى Firestore
+        await firestore.collection('users').doc(user.uid).set({
+            email: email,
+            displayName: name,
+            role: role,
+            tenantId: tenantId,
+            createdAt: new Date(),
+            active: true,
+            lastLogin: null
+        });
+        
+        alert('✅ تم إضافة المستخدم بنجاح!');
+        closeModal('add-company-user-modal');
+        document.getElementById('add-company-user-form').reset();
+    } catch (error) {
+        console.error('خطأ في إضافة المستخدم:', error);
         alert('❌ حدث خطأ: ' + error.message);
     }
 }
@@ -209,33 +288,54 @@ async function deleteDriver(driverId) {
     }
 }
 
+// تعطيل/تفعيل مستخدم
+async function disableUser(userId) {
+    try {
+        const user = companyUsers.find(u => u.id === userId);
+        await firestore.collection('users').doc(userId).update({
+            active: !user.active
+        });
+        alert('✅ تم ' + (!user.active ? 'تفعيل' : 'تعطيل') + ' المستخدم!');
+    } catch (error) {
+        console.error('خطأ:', error);
+        alert('❌ حدث خطأ');
+    }
+}
+
+// حذف مستخدم من الشركة
+async function deleteCompanyUser(userId) {
+    if (!confirm('هل أنت متأكد من حذف هذا المستخدم؟')) {
+        return;
+    }
+    
+    try {
+        await firestore.collection('users').doc(userId).delete();
+        alert('✅ تم حذف المستخدم بنجاح!');
+    } catch (error) {
+        console.error('خطأ في حذف المستخدم:', error);
+        alert('❌ حدث خطأ في حذف المستخدم');
+    }
+}
+
 // تبديل التبويبات
 function switchTab(tabName) {
     const contents = document.querySelectorAll('.tab-content');
     const buttons = document.querySelectorAll('.tab-btn');
     
-    contents.forEach(content => {
-        content.classList.remove('active');
-    });
-    
-    buttons.forEach(button => {
-        button.classList.remove('active');
-    });
+    contents.forEach(content => content.classList.remove('active'));
+    buttons.forEach(button => button.classList.remove('active'));
     
     const targetTab = document.getElementById(tabName);
-    if (targetTab) {
-        targetTab.classList.add('active');
-    }
+    if (targetTab) targetTab.classList.add('active');
     
     event.target.classList.add('active');
     
-    // تحميل بيانات التقارير
     if (tabName === 'reports-tab') {
         loadReportDriversList();
     }
 }
 
-// تحميل قائمة السائقين للعرض بالابتراخ
+// تحميل قائمة السائقين للتقارير
 function loadReportDriversList() {
     const select = document.getElementById('report-driver-select');
     if (!select) return;
@@ -256,19 +356,18 @@ async function generateReport() {
     const reportDate = document.getElementById('report-date').value;
     
     if (!driverCode) {
-        alert('رجاءاً اختر سائق');
+        alert('رجاءً اختر سائق');
         return;
     }
     
     if (!reportDate) {
-        alert('رجاءاً اختر تاريخ');
+        alert('رجاءً اختر تاريخ');
         return;
     }
     
     try {
         const driver = companyDrivers.find(d => d.code === driverCode);
         
-        // الحصول على بيانات السجل للتاريخ المعين
         const startDate = new Date(reportDate);
         const endDate = new Date(reportDate);
         endDate.setDate(endDate.getDate() + 1);
@@ -309,7 +408,7 @@ async function generateReport() {
                 totalDistance += distance;
                 
                 if (record.speed === 0) {
-                    totalStopTime += (record.timestamp - prev.timestamp) / 1000 / 60; // بالدقائق
+                    totalStopTime += (record.timestamp - prev.timestamp) / 1000 / 60;
                 }
             }
             
@@ -370,7 +469,7 @@ async function generateReport() {
                         border-radius: 5px;
                         cursor: pointer;
                         font-weight: bold;
-                    ">📑 تحميل PDF</button>
+                    ">📄 تحميل PDF</button>
                 </div>
             </div>
         `;
@@ -406,15 +505,21 @@ function printReport() {
     printWindow.print();
 }
 
-// تحميل التقرير PDF
-function downloadReportPDF() {
-    alert('✅ سيتم قريباً تطبيق مكتبة PDF');
-}
-
-// تحميل بيانات الشركة عند فتح اللوحة
+// تحميل بيانات الشركة عند فتح الصفحة
 function initializeCompanyPage() {
     if (currentUser && userRole === 'company_manager') {
         loadCompanyData();
         loadReportDriversList();
     }
 }
+
+// إغلاق النوافذ المنبثقة
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+}
+
+window.onclick = function(event) {
+    if (event.target.classList.contains('modal')) {
+        event.target.style.display = 'none';
+    }
+};

@@ -1,4 +1,4 @@
-// Main Application Logic
+// Main Application Logic - Enhanced
 let vehiclesData = {};
 let driversData = {};
 let historyData = [];
@@ -17,12 +17,12 @@ async function initializeDashboard() {
 // تحميل بيانات لوحة التحكم
 async function loadDashboardData() {
     try {
-        // تحميل بيانات المركبات
+        // تحميل بيانات المركبات والسائقين
         database.ref('vehicleDrivers').on('value', (snapshot) => {
             if (snapshot.exists()) {
                 driversData = snapshot.val();
                 updateVehiclesList();
-                updateDriversTable();
+                updateStats();
             }
         });
         
@@ -42,26 +42,6 @@ async function loadDashboardData() {
                 updateHistoryTable();
             }
         });
-        
-        // تحميل بيانات المستأجرين للمسؤول
-        if (userRole === 'admin') {
-            firestore.collection('tenants').onSnapshot((snapshot) => {
-                const tenantsList = [];
-                snapshot.forEach((doc) => {
-                    tenantsList.push({id: doc.id, ...doc.data()});
-                });
-                updateTenantsList(tenantsList);
-            });
-            
-            // تحميل بيانات المستخدمين
-            firestore.collection('users').onSnapshot((snapshot) => {
-                const usersList = [];
-                snapshot.forEach((doc) => {
-                    usersList.push({id: doc.id, ...doc.data()});
-                });
-                updateUsersList(usersList);
-            });
-        }
     } catch (error) {
         console.error('خطأ في تحميل البيانات:', error);
     }
@@ -86,12 +66,15 @@ function updateStats() {
 // تحديث قائمة المركبات
 function updateVehiclesList() {
     const list = document.getElementById('vehicles-list');
+    if (!list) return;
     list.innerHTML = '';
     
     Object.entries(driversData).forEach(([code, driver]) => {
+        if (userRole === 'company_manager' && driver.tenantId !== tenantId) return;
+        
         const vehicle = vehiclesData[code];
         const html = `
-            <div class="vehicle-item" onclick="selectVehicle('${code}')">
+            <div class="vehicle-item" data-code="${code}" onclick="selectVehicle('${code}')">
                 <div class="vehicle-header">
                     <h4>${driver.name}</h4>
                     <span class="status ${vehicle?.speed > 0 ? 'active' : 'inactive'}">
@@ -109,33 +92,18 @@ function updateVehiclesList() {
     });
 }
 
-// تحديث جدول السائقين
-function updateDriversTable() {
-    const tbody = document.getElementById('history-tbody');
-    tbody.innerHTML = '';
-    
-    Object.entries(driversData).forEach(([code, driver]) => {
-        const vehicle = vehiclesData[code];
-        const time = vehicle?.timestamp ? new Date(vehicle.timestamp).toLocaleString('ar-EG') : 'N/A';
-        const html = `
-            <tr>
-                <td>${code}</td>
-                <td>${driver.name}</td>
-                <td>${vehicle?.location || 'غير معروف'}</td>
-                <td>${time}</td>
-                <td>${vehicle?.speed || 0} كم/س</td>
-            </tr>
-        `;
-        tbody.innerHTML += html;
-    });
-}
-
 // تحديث جدول السجل
 function updateHistoryTable() {
     const tbody = document.getElementById('history-tbody');
+    if (!tbody) return;
     tbody.innerHTML = '';
     
     historyData.slice(-20).reverse().forEach(record => {
+        if (userRole === 'company_manager') {
+            const driver = Object.values(driversData).find(d => d.code === record.driverCode);
+            if (!driver || driver.tenantId !== tenantId) return;
+        }
+        
         const time = new Date(record.timestamp).toLocaleString('ar-EG');
         const html = `
             <tr>
@@ -156,67 +124,20 @@ function selectVehicle(vehicleCode) {
     if (vehicle && vehicle.latitude && vehicle.longitude) {
         map.setCenter({lat: vehicle.latitude, lng: vehicle.longitude});
         map.setZoom(15);
+        selectVehicleOnMap(vehicleCode);
     }
-}
-
-// تحديث قائمة المستأجرين
-function updateTenantsList(tenants) {
-    const tbody = document.getElementById('tenants-tbody');
-    tbody.innerHTML = '';
-    
-    tenants.forEach(tenant => {
-        const vehicleCount = Object.values(driversData).filter(d => d.tenantId === tenant.id).length;
-        const html = `
-            <tr>
-                <td>${tenant.name}</td>
-                <td>${tenant.email}</td>
-                <td>${tenant.phone}</td>
-                <td>${vehicleCount}</td>
-                <td><span class="badge active">نشط</span></td>
-                <td>
-                    <button class="btn btn-sm" onclick="editTenant('${tenant.id}')">تعديل</button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteTenant('${tenant.id}')">حذف</button>
-                </td>
-            </tr>
-        `;
-        tbody.innerHTML += html;
-    });
-}
-
-// تحديث قائمة المستخدمين
-function updateUsersList(users) {
-    const tbody = document.getElementById('users-tbody');
-    tbody.innerHTML = '';
-    
-    users.forEach(user => {
-        const html = `
-            <tr>
-                <td>${user.displayName}</td>
-                <td>${user.email}</td>
-                <td>${user.role}</td>
-                <td>${user.tenantId || 'N/A'}</td>
-                <td><span class="badge ${user.active ? 'active' : 'inactive'}">${user.active ? 'نشط' : 'معطل'}</span></td>
-                <td>
-                    <button class="btn btn-sm" onclick="editUser('${user.id}')">تعديل</button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteUser('${user.id}')">حذف</button>
-                </td>
-            </tr>
-        `;
-        tbody.innerHTML += html;
-    });
-}
-
-// بدء التحديثات الفورية
-function startRealtimeUpdates() {
-    // تحديث المسافة اليومية
-    database.ref('vehicleDrivers').on('child_changed', (snapshot) => {
-        updateStats();
-    });
 }
 
 // تحديث الخريطة
 function updateMap() {
+    if (!map) return;
+    
     Object.entries(vehiclesData).forEach(([code, vehicle]) => {
+        if (userRole === 'company_manager') {
+            const driver = driversData[code];
+            if (!driver || driver.tenantId !== tenantId) return;
+        }
+        
         if (vehicle.latitude && vehicle.longitude) {
             const driver = driversData[code];
             const markerColor = vehicle.speed > 0 ? 'green' : 'red';
@@ -231,17 +152,9 @@ function updateMap() {
                     icon: `http://maps.google.com/mapfiles/ms/icons/${markerColor}-dot.png`
                 });
                 
-                // إضافة معلومات عند النقر على العلامة
                 if (driver) {
                     const infoWindow = new google.maps.InfoWindow({
-                        content: `
-                            <div class="info-window">
-                                <h3>${driver.name}</h3>
-                                <p>المركبة: ${code}</p>
-                                <p>السرعة: ${vehicle.speed} كم/س</p>
-                                <p>الموقع: ${vehicle.location || 'غير معروف'}</p>
-                            </div>
-                        `
+                        content: createMarkerInfoWindow(code, driver, vehicle)
                     });
                     
                     markers[code].addListener('click', () => {
@@ -253,198 +166,82 @@ function updateMap() {
     });
 }
 
-// إضافة سائق
-async function addDriver(event) {
-    event.preventDefault();
-    
-    const driverName = document.getElementById('driver-name').value;
-    const driverPhone = document.getElementById('driver-phone').value;
-    const driverVehicle = document.getElementById('driver-vehicle').value;
-    const driverId = document.getElementById('driver-id').value;
-    
+// حفظ/تحديث آخر تسجيل دخول
+async function updateLastLogin() {
     try {
-        // إضافة إلى Realtime Database
-        await database.ref(`vehicleDrivers/${driverId}`).set({
-            name: driverName,
-            phone: driverPhone,
-            vehicleCode: driverVehicle,
-            tenantId: tenantId,
-            createdAt: new Date().toISOString()
+        await firestore.collection('users').doc(currentUser.uid).update({
+            lastLogin: new Date()
         });
-        
-        // إضافة رمز التفعيل
-        await database.ref(`activationCodes/${driverPhone}`).set({
-            driverCode: driverId,
-            driverName: driverName,
-            createdAt: new Date().toISOString(),
-            used: false
-        });
-        
-        // إضافة إلى Firestore للنسخ الاحتياطية
-        await firestore.collection('drivers').doc(driverId).set({
-            name: driverName,
-            phone: driverPhone,
-            vehicleCode: driverVehicle,
-            tenantId: tenantId,
-            createdAt: new Date()
-        });
-        
-        alert('تم إضافة السائق بنجاح!');
-        closeModal('add-driver-modal');
-        document.getElementById('add-driver-form').reset();
     } catch (error) {
-        console.error('خطأ في إضافة السائق:', error);
-        alert('حدث خطأ في إضافة السائق');
+        console.error('خطأ في تحديث آخر دخول:', error);
     }
 }
 
-// إضافة مستأجر
-async function addTenant(event) {
-    event.preventDefault();
+// تحديث الصفحة المعروضة
+function showPage(pageId) {
+    const pages = document.querySelectorAll('.page');
+    pages.forEach(page => page.classList.remove('active'));
     
-    const tenantName = document.getElementById('tenant-name').value;
-    const tenantEmail = document.getElementById('tenant-email').value;
-    const tenantPhone = document.getElementById('tenant-phone').value;
-    
-    try {
-        const docRef = await firestore.collection('tenants').add({
-            name: tenantName,
-            email: tenantEmail,
-            phone: tenantPhone,
-            createdAt: new Date(),
-            active: true
-        });
+    const targetPage = document.getElementById(pageId);
+    if (targetPage) {
+        targetPage.classList.add('active');
         
-        alert('تم إضافة المستأجر بنجاح!');
-        closeModal('add-tenant-modal');
-        document.getElementById('add-tenant-form').reset();
-    } catch (error) {
-        console.error('خطأ في إضافة المستأجر:', error);
-        alert('حدث خطأ في إضافة المستأجر');
-    }
-}
-
-// إضافة مستخدم
-async function addUser(event) {
-    event.preventDefault();
-    
-    const userName = document.getElementById('user-name').value;
-    const userEmail = document.getElementById('user-email').value;
-    const userPassword = document.getElementById('user-password').value;
-    const userRole = document.getElementById('user-role').value;
-    const userTenant = document.getElementById('user-tenant').value;
-    
-    try {
-        const user = await createUser(userEmail, userPassword, userName, userRole, userTenant);
-        alert('تم إضافة المستخدم بنجاح!');
-        closeModal('add-user-modal');
-        document.getElementById('add-user-form').reset();
-    } catch (error) {
-        console.error('خطأ في إضافة المستخدم:', error);
-        alert('حدث خطأ: ' + error.message);
-    }
-}
-
-// حذف مستأجر
-async function deleteTenant(tenantId) {
-    if (confirm('هل تريد حذف هذا المستأجر؟')) {
-        try {
-            await firestore.collection('tenants').doc(tenantId).delete();
-            alert('تم حذف المستأجر بنجاح!');
-        } catch (error) {
-            console.error('خطأ في حذف المستأجر:', error);
-            alert('حدث خطأ في حذف المستأجر');
+        if (pageId === 'company-page') {
+            initializeCompanyPage();
+        } else if (pageId === 'admin-page') {
+            initializeAdminPage();
+        } else if (pageId === 'dashboard-page') {
+            initializeMap();
         }
     }
 }
 
-// حذف مستخدم
-async function deleteUser(userId) {
-    if (confirm('هل تريد حذف هذا المستخدم؟')) {
-        try {
-            await firestore.collection('users').doc(userId).delete();
-            alert('تم حذف المستخدم بنجاح!');
-        } catch (error) {
-            console.error('خطأ في حذف المستخدم:', error);
-            alert('حدث خطأ في حذف المستخدم');
-        }
-    }
+// بدء التحديثات الفورية
+function startRealtimeUpdates() {
+    // تحديث الإحصائيات
+    setInterval(() => {
+        updateStats();
+    }, 5000);
 }
 
-// تعديل مستأجر
-async function editTenant(tenantId) {
-    // يمكن إضافة نموذج تعديل
-    alert('وظيفة التعديل قيد التطوير');
-}
-
-// تعديل مستخدم
-async function editUser(userId) {
-    // يمكن إضافة نموذج تعديل
-    alert('وظيفة التعديل قيد التطوير');
-}
-
-// حفظ الإعدادات
-async function saveSettings() {
-    const liveTracking = document.getElementById('live-tracking').checked;
-    const emailAlerts = document.getElementById('email-alerts').checked;
-    const updateInterval = document.getElementById('location-update-interval').value;
-    
-    try {
-        await firestore.collection('settings').doc('global').set({
-            liveTracking: liveTracking,
-            emailAlerts: emailAlerts,
-            locationUpdateInterval: parseInt(updateInterval),
-            updatedAt: new Date()
-        }, { merge: true });
-        
-        alert('تم حفظ الإعدادات بنجاح!');
-    } catch (error) {
-        console.error('خطأ في حفظ الإعدادات:', error);
-        alert('حدث خطأ في حفظ الإعدادات');
-    }
-}
-
-// إضافة سائق من لوحة الشركة
-async function addDriver(event) {
-    event.preventDefault();
-    
-    const driverName = document.getElementById('driver-name').value;
-    const driverPhone = document.getElementById('driver-phone').value;
-    const driverVehicle = document.getElementById('driver-vehicle').value;
-    const driverId = document.getElementById('driver-id').value;
-    
-    try {
-        await database.ref(`vehicleDrivers/${driverId}`).set({
-            name: driverName,
-            phone: driverPhone,
-            vehicleCode: driverVehicle,
-            tenantId: tenantId,
-            createdAt: new Date().toISOString()
-        });
-        
-        await database.ref(`activationCodes/${driverPhone}`).set({
-            driverCode: driverId,
-            driverName: driverName,
-            createdAt: new Date().toISOString(),
-            used: false
-        });
-        
-        alert('تم إضافة السائق بنجاح!');
-        closeModal('add-driver-modal');
-        document.getElementById('add-driver-form').reset();
-    } catch (error) {
-        console.error('خطأ في إضافة السائق:', error);
-        alert('حدث خطأ في إضافة السائق');
-    }
-}
-
-// تحديث سجل الحركة
+// تحديث السجل
 function refreshHistory() {
     database.ref('locationHistory').limitToLast(100).once('value', (snapshot) => {
         if (snapshot.exists()) {
             historyData = Object.values(snapshot.val());
             updateHistoryTable();
-            alert('تم تحديث السجل بنجاح!');
+            alert('✅ تم تحديث السجل بنجاح!');
         }
     });
 }
+
+// حساب المسافة بين نقطتين
+function calculateDistance(lat1, lng1, lat2, lng2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLng/2) * Math.sin(dLng/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
+
+// إغلاق النوافذ المنبثقة
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) modal.style.display = 'none';
+}
+
+window.onclick = function(event) {
+    if (event.target.classList.contains('modal')) {
+        event.target.style.display = 'none';
+    }
+};
+
+// تحديث آخر دخول عند تسجيل الدخول
+auth.onAuthStateChanged((user) => {
+    if (user && currentUser) {
+        updateLastLogin();
+    }
+});
