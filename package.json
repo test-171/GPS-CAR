@@ -1,0 +1,34 @@
+{
+  "name": "gps-car-dashboard",
+  "version": "1.0.0",
+  "description": "منصة تتبع المركبات والسائقين في الوقت الفعلي",
+  "main": "index.html",
+  "scripts": {
+    "start": "http-server",
+    "dev": "http-server -p 8080",
+    "build": "echo \"No build needed for static files\"",
+    "deploy": "vercel --prod"
+  },
+  "keywords": [
+    "GPS",
+    "tracking",
+    "vehicles",
+    "real-time",
+    "firebase",
+    "maps"
+  ],
+  "author": "GPS-CAR Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GPS-CAR/GPS-CAR.git"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "http-server": "^14.1.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "homepage": "https://gps-car-kappa.vercel.app"
+}
