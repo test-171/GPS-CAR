@@ -1,127 +1,287 @@
-// admin.js
-// Enhanced admin: create tenant, view payments, approve/reject
-// Added: development helper to create a temporary admin user (dev-only). Remove in production.
-async function adminInit(){
-  const container = document.getElementById('view-admin');
-  container.innerHTML = `
-    <h2>لوحة المدير العام</h2>
-    <div class="card">
-      <h3>إنشاء شركة / فرد</h3>
-      <label>tenantId (رقمي/هاتف أو اتركه فارغًا): <input id="new-tenant-id"/></label>
-      <label>اسم الشركة: <input id="new-tenant-name"/></label>
-      <label>اسم المالك: <input id="new-tenant-owner"/></label>
-      <label>هاتف: <input id="new-tenant-phone"/></label>
-      <label>بريد: <input id="new-tenant-email"/></label>
-      <label>نوع: <select id="new-tenant-type"><option value="company">شركة</option><option value="individual">فرد</option></select></label>
-      <div class="row"><button id="create-tenant">إنشاء Tenant</button></div>
-    </div>
-    <div class="card">
-      <button id="refresh-tenants">تحديث قائمة الشركات</button>
-      <button id="create-temp-admin">إنشاء مدير اختبار (Dev)</button>
-      <div id="tenants-list"></div>
-    </div>
-    <div id="tenant-payments" class="card"></div>
-    <div id="dev-output" class="card" style="display:none;"></div>
-  `;
-  document.getElementById('create-tenant').addEventListener('click', createTenant);
-  document.getElementById('refresh-tenants').addEventListener('click', loadTenants);
-  document.getElementById('create-temp-admin').addEventListener('click', createTempAdmin);
-  loadTenants();
+// Admin Module - لوحة إدارة النظام
+let allTenants = [];
+let allUsers = [];
+let adminSettings = {};
+
+// فتح نافذة إضافة مستأجر
+function openAddTenantModal() {
+    document.getElementById('add-tenant-modal').style.display = 'block';
 }
 
-async function createTempAdmin(){
-  if(!confirm('إنشاء حساب مدير اختبار سيقوم بإنشاء مستخدم جديد في Firebase Authentication وإضافة سجل في Firestore. ��ذا مخصص للاختبار فقط. تابع؟')) return;
-  try{
-    const ts = Date.now();
-    const rnd = Math.floor(Math.random()*9000+1000);
-    const email = `temp-admin-${ts}@example.com`;
-    const password = `Temp#${rnd}`;
-    const apiKey = (window.__FIREBASE_CONFIG && window.__FIREBASE_CONFIG.apiKey) ? window.__FIREBASE_CONFIG.apiKey : (typeof firebaseConfig !== 'undefined' ? firebaseConfig.apiKey : null);
-    if(!apiKey) return alert('لا يوجد apiKey في التهيئة. تأكد من firebase-config.js');
-
-    // Create user via Firebase Identity Toolkit REST API to avoid signing out current admin
-    const url = `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${apiKey}`;
-    const res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email, password, returnSecureToken: true})});
-    const data = await res.json();
-    if(data.error) return alert('خطأ بإنشاء المستخدم: '+(data.error.message||JSON.stringify(data.error)));
-    const uid = data.localId;
-
-    // create user doc in Firestore with role admin (app checks role in users collection)
-    await firebase.firestore().collection('users').doc(uid).set({role:'admin', createdAt: Date.now(), email});
-
-    // show credentials
-    const out = document.getElementById('dev-output');
-    out.style.display = 'block';
-    out.innerHTML = `<h3>حساب مدير مؤقت</h3><div>البريد: <b>${email}</b></div><div>كلمة المرور: <b>${password}</b></div><div>uid: <b>${uid}</b></div><p>استخدم هذه البيانات لتسجيل الدخول. احذف الحساب بعد الاختبار.</p>`;
-    alert('تم إنشاء حساب مدير اختبار: ' + email + ' / ' + password);
-  }catch(err){
-    console.error(err); alert('حدث خطأ أثناء إنشاء الحساب: '+err.message);
-  }
+// فتح نافذة إضافة مستخدم
+function openAddUserModal() {
+    const select = document.getElementById('user-tenant');
+    select.innerHTML = '';
+    allTenants.forEach(tenant => {
+        const option = document.createElement('option');
+        option.value = tenant.id;
+        option.textContent = tenant.name;
+        select.appendChild(option);
+    });
+    document.getElementById('add-user-modal').style.display = 'block';
 }
 
-async function createTenant(){
-  const id = document.getElementById('new-tenant-id').value.trim() || null;
-  const name = document.getElementById('new-tenant-name').value.trim();
-  const ownerName = document.getElementById('new-tenant-owner').value.trim();
-  const phone = document.getElementById('new-tenant-phone').value.trim();
-  const email = document.getElementById('new-tenant-email').value.trim();
-  const type = document.getElementById('new-tenant-type').value;
-  if(!name||!ownerName) return alert('املأ الاسم واسم المالك');
-  const fs = firebase.firestore();
-  const tenantId = id || (phone?rtnNormalizePhone(phone):('t'+Date.now()));
-  await fs.collection('tenants').doc(tenantId).set({tenantId, name, ownerName, phone, email, type, status:'active', subscriptionStatus:'trial', subscriptionStartDate: Date.now(), subscriptionEndDate: Date.now()+30*24*3600*1000, subscriptionPrice:0, subscriptionPlan:'trial', createdAt: Date.now()});
-  alert('تم إنشاء Tenant: '+tenantId);
-  loadTenants();
+// تحميل بيانات الإدارة
+async function loadAdminData() {
+    try {
+        // تحميل المستأجرين
+        firestore.collection('tenants').onSnapshot((snapshot) => {
+            allTenants = [];
+            snapshot.forEach(doc => {
+                allTenants.push({ id: doc.id, ...doc.data() });
+            });
+            updateTenantsList(allTenants);
+        });
+        
+        // تحميل المستخدمين
+        firestore.collection('users').onSnapshot((snapshot) => {
+            allUsers = [];
+            snapshot.forEach(doc => {
+                allUsers.push({ id: doc.id, ...doc.data() });
+            });
+            updateUsersList(allUsers);
+        });
+        
+        // تحميل الإعدادات
+        firestore.collection('settings').doc('global').onSnapshot((doc) => {
+            if (doc.exists) {
+                adminSettings = doc.data();
+                updateSettingsUI();
+            }
+        });
+    } catch (error) {
+        console.error('خطأ في تحميل بيانات الإدارة:', error);
+    }
 }
 
-function rtnNormalizePhone(p){ return p.replace(/\D/g,''); }
-
-async function loadTenants(){
-  const list = document.getElementById('tenants-list'); list.innerHTML='';
-  const snaps = await firebase.firestore().collection('tenants').limit(200).get();
-  snaps.forEach(doc=>{
-    const d = doc.data();
-    const el = document.createElement('div'); el.className='card';
-    el.innerHTML = `<b>${d.name||'بدون اسم'}</b><div>مالك: ${d.ownerName||''}</div><div>هاتف: ${d.phone||''}</div><div>tenantId: ${doc.id}</div>
-      <div class="row"><button data-id="${doc.id}" class="view-payments">عرض المدفوعات</button></div>`;
-    list.appendChild(el);
-  });
-  list.querySelectorAll('.view-payments').forEach(btn=> btn.addEventListener('click', e=> viewPayments(e.target.dataset.id)));
+// إضافة مستأجر
+async function addTenant(event) {
+    event.preventDefault();
+    
+    const name = document.getElementById('tenant-name').value;
+    const email = document.getElementById('tenant-email').value;
+    const phone = document.getElementById('tenant-phone').value;
+    
+    if (!name || !email || !phone) {
+        alert('رجاءاً ملئ جميع الحقول');
+        return;
+    }
+    
+    try {
+        const docRef = await firestore.collection('tenants').add({
+            name: name,
+            email: email,
+            phone: phone,
+            createdAt: new Date(),
+            active: true,
+            subscriptionStatus: 'active',
+            maxVehicles: 50,
+            usedVehicles: 0
+        });
+        
+        alert('✅ تم إضافة المستأجر بنجاح!');
+        closeModal('add-tenant-modal');
+        document.getElementById('add-tenant-form').reset();
+    } catch (error) {
+        console.error('خطأ في إضافة المستأجر:', error);
+        alert('❌ حدث خطأ: ' + error.message);
+    }
 }
 
-async function viewPayments(tenantId){
-  const el = document.getElementById('tenant-payments'); el.innerHTML = `<h3>مدفوعات ${tenantId}</h3>`;
-  const snaps = await firebase.firestore().collection('tenants').doc(tenantId).collection('payments').orderBy('createdAt','desc').get();
-  snaps.forEach(doc=>{
-    const p = doc.data();
-    const div = document.createElement('div'); div.className='card';
-    div.innerHTML = `<div>مبلغ: ${p.amount} - طريقة: ${p.method} - الحالة: ${p.status}</div>
-      <div class="row"><button data-t="${tenantId}" data-id="${doc.id}" class="approve">قبول</button>
-      <button data-t="${tenantId}" data-id="${doc.id}" class="reject">رفض</button></div>`;
-    el.appendChild(div);
-  });
-  el.querySelectorAll('.approve').forEach(b=> b.addEventListener('click', async e=>{
-    const tid = e.target.dataset.t; const id = e.target.dataset.id; await acceptPayment(tid,id); viewPayments(tid);
-  }));
-  el.querySelectorAll('.reject').forEach(b=> b.addEventListener('click', async e=>{
-    const tid = e.target.dataset.t; const id = e.target.dataset.id; await rejectPayment(tid,id); viewPayments(tid);
-  }));
+// إضافة مستخدم
+async function addUser(event) {
+    event.preventDefault();
+    
+    const name = document.getElementById('user-name').value;
+    const email = document.getElementById('user-email').value;
+    const password = document.getElementById('user-password').value;
+    const role = document.getElementById('user-role').value;
+    const tenantId = document.getElementById('user-tenant').value;
+    
+    if (!name || !email || !password || !role) {
+        alert('رجاءاً ملئ جميع الحقول');
+        return;
+    }
+    
+    try {
+        const result = await auth.createUserWithEmailAndPassword(email, password);
+        const user = result.user;
+        
+        await firestore.collection('users').doc(user.uid).set({
+            email: email,
+            displayName: name,
+            role: role,
+            tenantId: tenantId || null,
+            createdAt: new Date(),
+            active: true,
+            lastLogin: null
+        });
+        
+        alert('✅ تم إضافة المستخدم بنجاح!');
+        closeModal('add-user-modal');
+        document.getElementById('add-user-form').reset();
+    } catch (error) {
+        console.error('خطأ في إضافة المستخدم:', error);
+        alert('❌ حدث خطأ: ' + error.message);
+    }
 }
 
-async function acceptPayment(tenantId, paymentId){
-  const db = firebase.firestore();
-  const pRef = db.collection('tenants').doc(tenantId).collection('payments').doc(paymentId);
-  const p = (await pRef.get()).data();
-  if(!p) return alert('طلب غير موجود');
-  await pRef.update({status:'paid', processedAt: Date.now()});
-  // update tenant subscription (simple: extend 1 month from now)
-  const tenantRef = db.collection('tenants').doc(tenantId);
-  const tdoc = await tenantRef.get();
-  const now = Date.now();
-  const newEnd = now + 30*24*3600*1000;
-  await tenantRef.update({subscriptionStatus:'active', subscriptionStartDate: now, subscriptionEndDate: newEnd});
-  alert('تم قبول الدفع وتفعيل الاشتراك');
+// حذف مستأجر
+async function deleteTenant(tenantId) {
+    if (!confirm('هل أنت متأكد من حذف هذا المستأجر؟')) {
+        return;
+    }
+    
+    try {
+        // حذف المسطخدمين المرتبطين
+        const usersSnapshot = await firestore.collection('users').where('tenantId', '==', tenantId).get();
+        const batch = firestore.batch();
+        
+        usersSnapshot.forEach(doc => {
+            batch.delete(doc.ref);
+        });
+        
+        // حذف المستأجر
+        batch.delete(firestore.collection('tenants').doc(tenantId));
+        await batch.commit();
+        
+        alert('✅ تم حذف المستأجر بنجاح!');
+    } catch (error) {
+        console.error('خطأ في حذف المستأجر:', error);
+        alert('❌ حدث خطأ في حذف المستأجر');
+    }
 }
-async function rejectPayment(tenantId, paymentId){ await firebase.firestore().collection('tenants').doc(tenantId).collection('payments').doc(paymentId).update({status:'rejected', processedAt: Date.now()}); alert('تم رفض الطلب'); }
 
-window.adminInit = adminInit;
+// حذف مستخدم
+async function deleteUser(userId) {
+    if (!confirm('هل أنت متأكد من حذف هذا المستخدم؟')) {
+        return;
+    }
+    
+    try {
+        await firestore.collection('users').doc(userId).delete();
+        alert('✅ تم حذف المستخدم بنجاح!');
+    } catch (error) {
+        console.error('خطأ في حذف المستخدم:', error);
+        alert('❌ حدث خطأ في حذف المستخدم');
+    }
+}
+
+// تبديل التبويبات الإدارية
+function switchAdminTab(tabName) {
+    const contents = document.querySelectorAll('.tab-content');
+    const buttons = document.querySelectorAll('.tab-btn');
+    
+    contents.forEach(content => {
+        content.classList.remove('active');
+    });
+    
+    buttons.forEach(button => {
+        button.classList.remove('active');
+    });
+    
+    const targetTab = document.getElementById(tabName);
+    if (targetTab) {
+        targetTab.classList.add('active');
+    }
+    
+    event.target.classList.add('active');
+}
+
+// تحديث واجهة الإعدادات
+function updateSettingsUI() {
+    if (adminSettings.liveTracking !== undefined) {
+        document.getElementById('live-tracking').checked = adminSettings.liveTracking;
+    }
+    if (adminSettings.emailAlerts !== undefined) {
+        document.getElementById('email-alerts').checked = adminSettings.emailAlerts;
+    }
+    if (adminSettings.locationUpdateInterval) {
+        document.getElementById('location-update-interval').value = adminSettings.locationUpdateInterval;
+    }
+}
+
+// حفظ الإعدادات
+async function saveSettings() {
+    const liveTracking = document.getElementById('live-tracking').checked;
+    const emailAlerts = document.getElementById('email-alerts').checked;
+    const updateInterval = parseInt(document.getElementById('location-update-interval').value);
+    
+    if (updateInterval < 1 || updateInterval > 60) {
+        alert('رجاءاً أدخل قيمة بين 1 و 60');
+        return;
+    }
+    
+    try {
+        await firestore.collection('settings').doc('global').set({
+            liveTracking: liveTracking,
+            emailAlerts: emailAlerts,
+            locationUpdateInterval: updateInterval,
+            updatedAt: new Date(),
+            updatedBy: currentUser.uid
+        }, { merge: true });
+        
+        alert('✅ تم حفظ الإعدادات بنجاح!');
+    } catch (error) {
+        console.error('خطأ في حفظ الإعدادات:', error);
+        alert('❌ حدث خطأ في حفظ الإعدادات');
+    }
+}
+
+// الحصول على عدد المركبات للمستأجر
+function getVehicleCountForTenant(tenantId) {
+    return Object.values(driversData).filter(d => d.tenantId === tenantId).length;
+}
+
+// تحميل بيانات الإدارة عند فتح اللوحة
+function initializeAdminPage() {
+    if (currentUser && userRole === 'admin') {
+        loadAdminData();
+    }
+}
+
+// تراصل عرض الصفحات
+function showPage(pageId) {
+    const pages = document.querySelectorAll('.page');
+    pages.forEach(page => {
+        page.classList.remove('active');
+    });
+    
+    const targetPage = document.getElementById(pageId);
+    if (targetPage) {
+        targetPage.classList.add('active');
+        
+        // تهيئة بيانات الصفحة
+        if (pageId === 'company-page') {
+            initializeCompanyPage();
+        } else if (pageId === 'admin-page') {
+            initializeAdminPage();
+        }
+    }
+}
+
+// معالجة نموذج تسجيل الدخول
+const loginForm = document.getElementById('login-form');
+if (loginForm) {
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const errorDiv = document.getElementById('login-error');
+        
+        try {
+            errorDiv.textContent = 'جاري التحقق من بياناتك...';
+            const success = await loginUser(email, password);
+            
+            if (success) {
+                initializeDashboard();
+                initializeMap();
+                errorDiv.textContent = '';
+            } else {
+                errorDiv.textContent = 'فشل تسجيل الدخول. تحقق من بياناتك';
+            }
+        } catch (error) {
+            errorDiv.textContent = 'خطأ في تسجيل الدخول: ' + error.message;
+        }
+    });
+}
