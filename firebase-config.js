@@ -1,23 +1,29 @@
-// firebase-config.js
-// Contains client Firebase config. You provided values; keep them here or override by setting window.__FIREBASE_CONFIG before this script.
+// Firebase Configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyBgRkceRq7FRbhCevLlULYNy-A5Tl_cr0w",
-  authDomain: "sr-test-c9e06.firebaseapp.com",
-  databaseURL: "https://sr-test-c9e06-default-rtdb.firebaseio.com",
-  projectId: "sr-test-c9e06",
-  storageBucket: "sr-test-c9e06.firebasestorage.app",
-  messagingSenderId: "658396508062",
-  appId: "1:658396508062:web:c56cd84f93daa2e176308f",
-  measurementId: "G-3ZZV344NDK"
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_AUTH_DOMAIN",
+    databaseURL: "YOUR_DATABASE_URL",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_STORAGE_BUCKET",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_APP_ID",
+    measurementId: "YOUR_MEASUREMENT_ID"
 };
 
-// Allow override from hosting environment by injecting window.__FIREBASE_CONFIG before this file loads.
-const _cfg = (window && window.__FIREBASE_CONFIG) ? window.__FIREBASE_CONFIG : firebaseConfig;
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
 
-if (!window.firebase || !firebase.apps) {
-  console.error('Firebase SDK not loaded');
-} else {
-  if (!firebase.apps.length) {
-    firebase.initializeApp(_cfg);
-  }
-}
+// Firebase Services
+const auth = firebase.auth();
+const database = firebase.database();
+const firestore = firebase.firestore();
+
+// تفعيل Offline Persistence
+firestore.enablePersistence()
+    .catch((err) => {
+        if (err.code == 'failed-precondition') {
+            console.log('Multiple tabs open');
+        } else if (err.code == 'unimplemented') {
+            console.log('Browser does not support offline persistence');
+        }
+    });
