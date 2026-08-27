@@ -1,5 +1,5 @@
 // firebase-config.js
-// Contains client Firebase config. You provided values; keep them here or override via Vercel env.
+// Contains client Firebase config. You provided values; keep them here or override by setting window.__FIREBASE_CONFIG before this script.
 const firebaseConfig = {
   apiKey: "AIzaSyBgRkceRq7FRbhCevLlULYNy-A5Tl_cr0w",
   authDomain: "sr-test-c9e06.firebaseapp.com",
@@ -11,11 +11,13 @@ const firebaseConfig = {
   measurementId: "G-3ZZV344NDK"
 };
 
-// Initialize Firebase (compat for ease)
+// Allow override from hosting environment by injecting window.__FIREBASE_CONFIG before this file loads.
+const _cfg = (window && window.__FIREBASE_CONFIG) ? window.__FIREBASE_CONFIG : firebaseConfig;
+
 if (!window.firebase || !firebase.apps) {
   console.error('Firebase SDK not loaded');
 } else {
   if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
+    firebase.initializeApp(_cfg);
   }
 }
