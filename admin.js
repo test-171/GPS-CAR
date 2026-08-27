@@ -1,5 +1,6 @@
 // admin.js
 // Enhanced admin: create tenant, view payments, approve/reject
+// Added: development helper to create a temporary admin user (dev-only). Remove in production.
 async function adminInit(){
   const container = document.getElementById('view-admin');
   container.innerHTML = `
@@ -16,13 +17,46 @@ async function adminInit(){
     </div>
     <div class="card">
       <button id="refresh-tenants">تحديث قائمة الشركات</button>
+      <button id="create-temp-admin">إنشاء مدير اختبار (Dev)</button>
       <div id="tenants-list"></div>
     </div>
     <div id="tenant-payments" class="card"></div>
+    <div id="dev-output" class="card" style="display:none;"></div>
   `;
   document.getElementById('create-tenant').addEventListener('click', createTenant);
   document.getElementById('refresh-tenants').addEventListener('click', loadTenants);
+  document.getElementById('create-temp-admin').addEventListener('click', createTempAdmin);
   loadTenants();
+}
+
+async function createTempAdmin(){
+  if(!confirm('إنشاء حساب مدير اختبار سيقوم بإنشاء مستخدم جديد في Firebase Authentication وإضافة سجل في Firestore. ��ذا مخصص للاختبار فقط. تابع؟')) return;
+  try{
+    const ts = Date.now();
+    const rnd = Math.floor(Math.random()*9000+1000);
+    const email = `temp-admin-${ts}@example.com`;
+    const password = `Temp#${rnd}`;
+    const apiKey = (window.__FIREBASE_CONFIG && window.__FIREBASE_CONFIG.apiKey) ? window.__FIREBASE_CONFIG.apiKey : (typeof firebaseConfig !== 'undefined' ? firebaseConfig.apiKey : null);
+    if(!apiKey) return alert('لا يوجد apiKey في التهيئة. تأكد من firebase-config.js');
+
+    // Create user via Firebase Identity Toolkit REST API to avoid signing out current admin
+    const url = `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${apiKey}`;
+    const res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email, password, returnSecureToken: true})});
+    const data = await res.json();
+    if(data.error) return alert('خطأ بإنشاء المستخدم: '+(data.error.message||JSON.stringify(data.error)));
+    const uid = data.localId;
+
+    // create user doc in Firestore with role admin (app checks role in users collection)
+    await firebase.firestore().collection('users').doc(uid).set({role:'admin', createdAt: Date.now(), email});
+
+    // show credentials
+    const out = document.getElementById('dev-output');
+    out.style.display = 'block';
+    out.innerHTML = `<h3>حساب مدير مؤقت</h3><div>البريد: <b>${email}</b></div><div>كلمة المرور: <b>${password}</b></div><div>uid: <b>${uid}</b></div><p>استخدم هذه البيانات لتسجيل الدخول. احذف الحساب بعد الاختبار.</p>`;
+    alert('تم إنشاء حساب مدير اختبار: ' + email + ' / ' + password);
+  }catch(err){
+    console.error(err); alert('حدث خطأ أثناء إنشاء الحساب: '+err.message);
+  }
 }
 
 async function createTenant(){
