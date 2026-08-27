@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>GPS-CAR Dashboard</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <h1>نظام تتبع السيارات - GPS-CAR</h1>
+      <div id="auth-area"></div>
+    </header>
+
+    <main>
+      <section id="login-section" class="card">
+        <h2>تسجيل الدخول</h2>
+        <form id="login-form">
+          <input id="email" type="email" placeholder="البريد الإلكتروني" required />
+          <input id="password" type="password" placeholder="كلمة المرور" required />
+          <div class="row">
+            <button id="login-btn" type="submit">دخول</button>
+            <button id="register-btn" type="button">تسجيل جديد</button>
+          </div>
+        </form>
+      </section>
+
+      <section id="dashboard" class="hidden">
+        <nav class="tabs">
+          <button data-view="company">لوحة الشركة</button>
+          <button data-view="map">الخريطة</button>
+          <button data-view="admin">لوحة المدير</button>
+        </nav>
+
+        <div id="views">
+          <div id="view-company" class="view hidden"></div>
+          <div id="view-map" class="view hidden">
+            <div id="map" style="height:70vh"></div>
+            <div id="map-controls" class="card small">
+              <label>بحث عن كود السائق: <input id="search-code" /></label>
+              <button id="follow-btn">متابعة</button>
+              <button id="stop-follow-btn" class="danger">إيقاف المتابعة</button>
+            </div>
+          </div>
+          <div id="view-admin" class="view hidden"></div>
+        </div>
+      </section>
+
+    </main>
+
+    <footer>
+      <small>واجهة RTL - Arabic first • Minimal MVP</small>
+    </footer>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script src="firebase-config.js"></script>
+  <script src="app.js"></script>
+  <script src="auth.js"></script>
+  <script src="map.js"></script>
+  <script src="company.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>
