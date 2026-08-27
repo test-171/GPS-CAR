@@ -10,27 +10,171 @@
 </head>
 <body>
     <div id="app">
-        <!-- صفحة تسجيل الدخول -->
-        <div id="login-page" class="page active">
-            <div class="login-container">
-                <div class="login-box">
+        <!-- صفحة المصادقة (تسجيل دخول + تسجيل حساب جديد) -->
+        <div id="auth-page" class="page active">
+            <div class="auth-container">
+                <div class="auth-box">
+                    <!-- شعار التطبيق -->
                     <div class="logo">
                         <i class="fas fa-map-location-dot"></i>
                         <h1>GPS-CAR</h1>
                     </div>
-                    <form id="login-form">
-                        <div class="form-group">
-                            <label for="email">البريد الإلكتروني</label>
-                            <input type="email" id="email" required placeholder="أدخل بريدك الإلكتروني">
-                        </div>
-                        <div class="form-group">
-                            <label for="password">كلمة المرور</label>
-                            <input type="password" id="password" required placeholder="أدخل كلمة المرور">
-                        </div>
-                        <button type="submit" class="btn btn-primary">تسجيل الدخول</button>
-                    </form>
-                    <div id="login-error" class="error-message"></div>
-                    <p class="login-info">جاري التحقق من البيانات...</p>
+
+                    <!-- نموذج تسجيل الدخول -->
+                    <div id="login-form-container">
+                        <h2 id="login-title">تسجيل الدخول</h2>
+                        <form id="login-form">
+                            <div class="form-group">
+                                <label for="email">
+                                    <i class="fas fa-envelope"></i> البريد الإلكتروني
+                                </label>
+                                <input type="email" id="email" required placeholder="أدخل بريدك الإلكتروني">
+                            </div>
+                            <div class="form-group">
+                                <label for="password">
+                                    <i class="fas fa-lock"></i> كلمة المرور
+                                </label>
+                                <input type="password" id="password" required placeholder="أدخل كلمة المرور">
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-sign-in-alt"></i> تسجيل الدخول
+                            </button>
+                        </form>
+                        <div id="login-error" class="error-message"></div>
+                        <p class="auth-toggle">
+                            ليس لديك حساب؟ 
+                            <a href="#" onclick="toggleAuthForm(); return false;">
+                                إنشاء حساب جديد
+                            </a>
+                        </p>
+                    </div>
+
+                    <!-- نموذج تسجيل حساب جديد -->
+                    <div id="register-form-container" style="display: none;">
+                        <h2 id="register-title">إنشاء حساب جديد</h2>
+                        <form id="register-form" style="max-height: 600px; overflow-y: auto;">
+                            <!-- بيانات المستخدم -->
+                            <div class="form-section-title">📋 بيانات المستخدم</div>
+                            
+                            <div class="form-group">
+                                <label for="reg-name">
+                                    <i class="fas fa-user"></i> اسمك الكامل
+                                </label>
+                                <input type="text" id="reg-name" required placeholder="أدخل اسمك">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="position">
+                                    <i class="fas fa-briefcase"></i> الوظيفة
+                                </label>
+                                <input type="text" id="position" placeholder="مثال: مدير الشركة">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="contact-phone">
+                                    <i class="fas fa-phone"></i> رقم الهاتف الشخصي
+                                </label>
+                                <input type="tel" id="contact-phone" required placeholder="أدخل رقم هاتفك">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="reg-email">
+                                    <i class="fas fa-envelope"></i> البريد الإلكتروني
+                                </label>
+                                <input type="email" id="reg-email" required placeholder="أدخل بريدك الإلكتروني">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="reg-password">
+                                    <i class="fas fa-lock"></i> كلمة المرور
+                                </label>
+                                <input type="password" id="reg-password" required placeholder="أدخل كلمة مرور قوية (6+ أحرف)">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="reg-confirm-password">
+                                    <i class="fas fa-lock"></i> تأكيد كلمة المرور
+                                </label>
+                                <input type="password" id="reg-confirm-password" required placeholder="أعد إدخال كلمة المرور">
+                            </div>
+
+                            <!-- بيانات الشركة -->
+                            <div class="form-section-title">🏢 بيانات الشركة</div>
+                            
+                            <div class="form-group">
+                                <label for="company-name">
+                                    <i class="fas fa-building"></i> اسم الشركة
+                                </label>
+                                <input type="text" id="company-name" required placeholder="أدخل اسم الشركة">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="company-email">
+                                    <i class="fas fa-envelope"></i> البريد الإلكتروني للشركة
+                                </label>
+                                <input type="email" id="company-email" required placeholder="أدخل البريد الإلكتروني للشركة">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="company-phone">
+                                    <i class="fas fa-phone"></i> هاتف الشركة
+                                </label>
+                                <input type="tel" id="company-phone" required placeholder="أدخل هاتف الشركة">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="address">
+                                    <i class="fas fa-map-marker-alt"></i> العنوان
+                                </label>
+                                <input type="text" id="address" placeholder="أدخل عنوان الشركة">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="city">
+                                    <i class="fas fa-city"></i> المدينة
+                                </label>
+                                <input type="text" id="city" placeholder="أدخل المدينة">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="country">
+                                    <i class="fas fa-globe"></i> الدولة
+                                </label>
+                                <input type="text" id="country" placeholder="أدخل الدولة">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="website">
+                                    <i class="fas fa-globe"></i> موقع الويب (اختياري)
+                                </label>
+                                <input type="url" id="website" placeholder="https://example.com">
+                            </div>
+                            
+                            <!-- نوع الاشتراك -->
+                            <div class="form-section-title">💳 نوع الاشتراك</div>
+                            
+                            <div class="form-group">
+                                <label for="subscription-type">
+                                    <i class="fas fa-star"></i> اختر خطة الاشتراك
+                                </label>
+                                <select id="subscription-type" required>
+                                    <option value="free">مجاني (50 مركبة، 5 مستخدمين)</option>
+                                    <option value="premium">متميز (500 مركبة، 50 مستخدم، ميزات متقدمة)</option>
+                                </select>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary" style="width: 100%;">
+                                <i class="fas fa-user-plus"></i> إنشاء حساب
+                            </button>
+                        </form>
+                        <div id="register-error" class="error-message"></div>
+                        <p class="auth-toggle">
+                            لديك حساب بالفعل؟ 
+                            <a href="#" onclick="toggleAuthForm(); return false;">
+                                تسجيل دخول
+                            </a>
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -178,6 +322,7 @@
                 <div class="tabs">
                     <button class="tab-btn active" onclick="switchTab('drivers-tab')">السائقين</button>
                     <button class="tab-btn" onclick="switchTab('vehicles-tab')">المركبات</button>
+                    <button class="tab-btn" onclick="switchTab('users-tab')">المستخدمين</button>
                     <button class="tab-btn" onclick="switchTab('reports-tab')">التقارير</button>
                 </div>
 
@@ -224,6 +369,30 @@
                                 </tr>
                             </thead>
                             <tbody id="vehicles-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- تبويب المستخدمين -->
+                <div id="users-tab" class="tab-content">
+                    <div class="section-header">
+                        <h3>المستخدمين في الشركة</h3>
+                        <button class="btn btn-primary" onclick="openAddCompanyUserModal()">
+                            <i class="fas fa-user-plus"></i> إضافة مستخدم
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>الاسم</th>
+                                    <th>البريد الإلكتروني</th>
+                                    <th>الدور</th>
+                                    <th>حالة الحساب</th>
+                                    <th>الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="company-users-tbody"></tbody>
                         </table>
                     </div>
                 </div>
@@ -281,27 +450,27 @@
 
             <div class="container">
                 <div class="tabs">
-                    <button class="tab-btn active" onclick="switchAdminTab('tenants-tab')">المستأجرين</button>
-                    <button class="tab-btn" onclick="switchAdminTab('users-tab')">المستخدمين</button>
+                    <button class="tab-btn active" onclick="switchAdminTab('tenants-tab')">الشركات</button>
+                    <button class="tab-btn" onclick="switchAdminTab('users-tab')">��لمستخدمين</button>
+                    <button class="tab-btn" onclick="switchAdminTab('admins-tab')">المسؤولين</button>
+                    <button class="tab-btn" onclick="switchAdminTab('stats-tab')">الإحصائيات</button>
                     <button class="tab-btn" onclick="switchAdminTab('settings-tab')">الإعدادات</button>
                 </div>
 
-                <!-- تبويب المستأجرين -->
+                <!-- تبويب الشركات -->
                 <div id="tenants-tab" class="tab-content active">
                     <div class="section-header">
-                        <h3>إدارة المستأجرين</h3>
-                        <button class="btn btn-primary" onclick="openAddTenantModal()">
-                            <i class="fas fa-plus"></i> إضافة مستأجر
-                        </button>
+                        <h3>إدارة الشركات</h3>
                     </div>
                     <div class="table-responsive">
                         <table>
                             <thead>
                                 <tr>
-                                    <th>اسم المستأجر</th>
+                                    <th>اسم الشركة</th>
                                     <th>البريد الإلكتروني</th>
-                                    <th>رقم الهاتف</th>
-                                    <th>عدد المركبات</th>
+                                    <th>الدولة</th>
+                                    <th>المركبات المستخدمة</th>
+                                    <th>نوع الاشتراك</th>
                                     <th>حالة الاشتراك</th>
                                     <th>الإجراءات</th>
                                 </tr>
@@ -315,30 +484,83 @@
                 <div id="users-tab" class="tab-content">
                     <div class="section-header">
                         <h3>إدارة المستخدمين</h3>
-                        <button class="btn btn-primary" onclick="openAddUserModal()">
-                            <i class="fas fa-plus"></i> إضافة مستخدم
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>الاسم</th>
+                                    <th>البريد الإلكتروني</th>
+                                    <th>الشركة</th>
+                                    <th>الدور</th>
+                                    <th>حالة الحساب</th>
+                                    <th>الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-users-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- تبويب المسؤولين -->
+                <div id="admins-tab" class="tab-content">
+                    <div class="section-header">
+                        <h3>إدارة المسؤولين</h3>
+                        <button class="btn btn-primary" onclick="openAddAdminModal()">
+                            <i class="fas fa-user-shield"></i> إضافة مسؤول
                         </button>
                     </div>
                     <div class="table-responsive">
                         <table>
                             <thead>
                                 <tr>
-                                    <th>اسم المستخدم</th>
+                                    <th>الاسم</th>
                                     <th>البريد الإلكتروني</th>
-                                    <th>الدور</th>
-                                    <th>المستأجر</th>
-                                    <th>الحالة</th>
+                                    <th>تاريخ الإنشاء</th>
+                                    <th>آخر دخول</th>
+                                    <th>حالة الحساب</th>
                                     <th>الإجراءات</th>
                                 </tr>
                             </thead>
-                            <tbody id="users-tbody"></tbody>
+                            <tbody id="admins-tbody"></tbody>
                         </table>
+                    </div>
+                </div>
+
+                <!-- تبويب الإحصائيات -->
+                <div id="stats-tab" class="tab-content">
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <h4>إجمالي الشركات</h4>
+                            <p id="total-tenants">0</p>
+                        </div>
+                        <div class="stat-box">
+                            <h4>إجمالي المستخدمين</h4>
+                            <p id="total-users">0</p>
+                        </div>
+                        <div class="stat-box">
+                            <h4>إجمالي المركبات</h4>
+                            <p id="total-all-vehicles">0</p>
+                        </div>
+                        <div class="stat-box">
+                            <h4>إجمالي السائقين</h4>
+                            <p id="total-all-drivers">0</p>
+                        </div>
+                        <div class="stat-box">
+                            <h4>الاشتراكات النشطة</h4>
+                            <p id="active-subscriptions">0</p>
+                        </div>
+                        <div class="stat-box">
+                            <h4>المسؤولين</h4>
+                            <p id="total-admins">0</p>
+                        </div>
                     </div>
                 </div>
 
                 <!-- تبويب الإعدادات -->
                 <div id="settings-tab" class="tab-content">
                     <div class="settings-container">
+                        <h3>إعدادات النظام العام</h3>
                         <div class="setting-item">
                             <label>
                                 <input type="checkbox" id="live-tracking" checked>
@@ -355,6 +577,14 @@
                             <label>تحديث بيانات الموقع (ثواني)</label>
                             <input type="number" id="location-update-interval" value="5" min="1" max="60">
                         </div>
+                        <div class="setting-item">
+                            <label>الحد الأقصى للمركبات (بدون دفع)</label>
+                            <input type="number" id="max-free-vehicles" value="50" min="1">
+                        </div>
+                        <div class="setting-item">
+                            <label>الحد الأقصى للمستخدمين (بدون دفع)</label>
+                            <input type="number" id="max-free-users" value="5" min="1">
+                        </div>
                         <button class="btn btn-primary" onclick="saveSettings()">
                             <i class="fas fa-save"></i> حفظ الإعدادات
                         </button>
@@ -364,8 +594,7 @@
         </div>
     </div>
 
-    <!-- Modals -->
-    <!-- Modal إضافة سائق -->
+    <!-- Modal: إضافة سائق -->
     <div id="add-driver-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -397,85 +626,81 @@
         </div>
     </div>
 
-    <!-- Modal إضافة مستأجر -->
-    <div id="add-tenant-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>إضافة مستأجر جديد</h2>
-                <button class="close-btn" onclick="closeModal('add-tenant-modal')">&times;</button>
-            </div>
-            <form id="add-tenant-form" onsubmit="addTenant(event)">
-                <div class="form-group">
-                    <label for="tenant-name">اسم المستأجر</label>
-                    <input type="text" id="tenant-name" required>
-                </div>
-                <div class="form-group">
-                    <label for="tenant-email">البريد الإلكتروني</label>
-                    <input type="email" id="tenant-email" required>
-                </div>
-                <div class="form-group">
-                    <label for="tenant-phone">رقم الهاتف</label>
-                    <input type="tel" id="tenant-phone" required>
-                </div>
-                <div class="modal-actions">
-                    <button type="submit" class="btn btn-primary">إضافة</button>
-                    <button type="button" class="btn btn-secondary" onclick="closeModal('add-tenant-modal')">إلغاء</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Modal إضافة مستخدم -->
-    <div id="add-user-modal" class="modal">
+    <!-- Modal: إضافة مستخدم للشركة -->
+    <div id="add-company-user-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
                 <h2>إضافة مستخدم جديد</h2>
-                <button class="close-btn" onclick="closeModal('add-user-modal')">&times;</button>
+                <button class="close-btn" onclick="closeModal('add-company-user-modal')">&times;</button>
             </div>
-            <form id="add-user-form" onsubmit="addUser(event)">
+            <form id="add-company-user-form" onsubmit="addCompanyUser(event)">
                 <div class="form-group">
-                    <label for="user-name">اسم المستخدم</label>
-                    <input type="text" id="user-name" required>
+                    <label for="comp-user-name">الاسم</label>
+                    <input type="text" id="comp-user-name" required>
                 </div>
                 <div class="form-group">
-                    <label for="user-email">البريد الإلكتروني</label>
-                    <input type="email" id="user-email" required>
+                    <label for="comp-user-email">البريد الإلكتروني</label>
+                    <input type="email" id="comp-user-email" required>
                 </div>
                 <div class="form-group">
-                    <label for="user-password">كلمة المرور</label>
-                    <input type="password" id="user-password" required>
+                    <label for="comp-user-password">كلمة المرور</label>
+                    <input type="password" id="comp-user-password" required>
                 </div>
                 <div class="form-group">
-                    <label for="user-role">الدور</label>
-                    <select id="user-role" required>
-                        <option value="admin">مسؤول</option>
+                    <label for="comp-user-role">الدور</label>
+                    <select id="comp-user-role" required>
                         <option value="company_manager">مدير الشركة</option>
+                        <option value="driver">سائق</option>
                         <option value="viewer">عارض</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label for="user-tenant">المستأجر</label>
-                    <select id="user-tenant"></select>
-                </div>
                 <div class="modal-actions">
                     <button type="submit" class="btn btn-primary">إضافة</button>
-                    <button type="button" class="btn btn-secondary" onclick="closeModal('add-user-modal')">إلغاء</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('add-company-user-modal')">إلغاء</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Firebase -->
+    <!-- Modal: إضافة مسؤول -->
+    <div id="add-admin-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>إضافة مسؤول جديد</h2>
+                <button class="close-btn" onclick="closeModal('add-admin-modal')">&times;</button>
+            </div>
+            <form id="add-admin-form" onsubmit="addAdminUser(event)">
+                <div class="form-group">
+                    <label for="admin-name">الاسم</label>
+                    <input type="text" id="admin-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="admin-email">البريد الإلكتروني</label>
+                    <input type="email" id="admin-email" required>
+                </div>
+                <div class="form-group">
+                    <label for="admin-password">كلمة المرور</label>
+                    <input type="password" id="admin-password" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary">إنشاء</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('add-admin-modal')">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Firebase Scripts -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js"></script>
 
-    <!-- Scripts -->
+    <!-- Application Scripts -->
     <script src="firebase-config.js"></script>
     <script src="auth.js"></script>
-    <script src="map.js"></script>
     <script src="app.js"></script>
+    <script src="map.js"></script>
     <script src="company.js"></script>
     <script src="admin.js"></script>
 </body>
