@@ -1,71 +1,482 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>GPS-CAR Dashboard</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="styles.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPS-CAR Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDKSs7EHmR9Gs-8Y6yZHpP-4h7U-qWr5hc&language=ar"></script>
 </head>
 <body>
-  <div id="app">
-    <header class="topbar">
-      <h1>نظام تتبع السيارات - GPS-CAR</h1>
-      <div id="auth-area"></div>
-    </header>
-
-    <main>
-      <section id="login-section" class="card">
-        <h2>تسجيل الدخول</h2>
-        <form id="login-form">
-          <input id="email" type="email" placeholder="البريد الإلكتروني" required />
-          <input id="password" type="password" placeholder="كلمة المرور" required />
-          <div class="row">
-            <button id="login-btn" type="submit">دخول</button>
-            <button id="register-btn" type="button">تسجيل جديد</button>
-          </div>
-        </form>
-      </section>
-
-      <section id="dashboard" class="hidden">
-        <nav class="tabs">
-          <button data-view="company">لوحة الشركة</button>
-          <button data-view="map">الخريطة</button>
-          <button data-view="admin">لوحة المدير</button>
-        </nav>
-
-        <div id="views">
-          <div id="view-company" class="view hidden"></div>
-          <div id="view-map" class="view hidden">
-            <div id="map" style="height:70vh"></div>
-            <div id="map-controls" class="card small">
-              <label>بحث عن كود السائق: <input id="search-code" /></label>
-              <button id="follow-btn">متابعة</button>
-              <button id="stop-follow-btn" class="danger">إيقاف المتابعة</button>
+    <div id="app">
+        <!-- صفحة تسجيل الدخول -->
+        <div id="login-page" class="page active">
+            <div class="login-container">
+                <div class="login-box">
+                    <div class="logo">
+                        <i class="fas fa-map-location-dot"></i>
+                        <h1>GPS-CAR</h1>
+                    </div>
+                    <form id="login-form">
+                        <div class="form-group">
+                            <label for="email">البريد الإلكتروني</label>
+                            <input type="email" id="email" required placeholder="أدخل بريدك الإلكتروني">
+                        </div>
+                        <div class="form-group">
+                            <label for="password">كلمة المرور</label>
+                            <input type="password" id="password" required placeholder="أدخل كلمة المرور">
+                        </div>
+                        <button type="submit" class="btn btn-primary">تسجيل الدخول</button>
+                    </form>
+                    <div id="login-error" class="error-message"></div>
+                    <p class="login-info">جاري التحقق من البيانات...</p>
+                </div>
             </div>
-          </div>
-          <div id="view-admin" class="view hidden"></div>
         </div>
-      </section>
 
-    </main>
+        <!-- صفحة لوحة التحكم الرئيسية -->
+        <div id="dashboard-page" class="page">
+            <nav class="navbar">
+                <div class="navbar-left">
+                    <div class="logo-small">
+                        <i class="fas fa-map-location-dot"></i>
+                        GPS-CAR
+                    </div>
+                </div>
+                <div class="navbar-center">
+                    <button class="nav-btn" onclick="showPage('dashboard-page')">
+                        <i class="fas fa-home"></i> الرئيسية
+                    </button>
+                    <button class="nav-btn" id="company-nav-btn" onclick="showPage('company-page')" style="display: none;">
+                        <i class="fas fa-building"></i> الشركة
+                    </button>
+                    <button class="nav-btn" id="admin-nav-btn" onclick="showPage('admin-page')" style="display: none;">
+                        <i class="fas fa-sliders"></i> الإدارة
+                    </button>
+                </div>
+                <div class="navbar-right">
+                    <div class="user-info">
+                        <span id="user-name">المستخدم</span>
+                        <button class="nav-btn" onclick="logout()">
+                            <i class="fas fa-sign-out-alt"></i> تسجيل الخروج
+                        </button>
+                    </div>
+                </div>
+            </nav>
 
-    <footer>
-      <small>واجهة RTL - Arabic first • Minimal MVP</small>
-    </footer>
-  </div>
+            <div class="dashboard-container">
+                <!-- إحصائيات سريعة -->
+                <div class="stats-container">
+                    <div class="stat-card">
+                        <div class="stat-icon active">
+                            <i class="fas fa-car"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3>المركبات النشطة</h3>
+                            <p id="active-vehicles">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon total">
+                            <i class="fas fa-cars"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3>إجمالي المركبات</h3>
+                            <p id="total-vehicles">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon drivers">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3>عدد السائقين</h3>
+                            <p id="total-drivers">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon distance">
+                            <i class="fas fa-road"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3>المسافة اليومية</h3>
+                            <p id="daily-distance">0 كم</p>
+                        </div>
+                    </div>
+                </div>
 
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+                <!-- الخريطة والقائمة الجانبية -->
+                <div class="map-container">
+                    <div id="map" class="map"></div>
+                    <div class="sidebar">
+                        <div class="sidebar-header">
+                            <h3>المركبات والسائقين</h3>
+                            <input type="text" id="search-vehicles" placeholder="ابحث عن مركبة...">
+                        </div>
+                        <div id="vehicles-list" class="vehicles-list"></div>
+                    </div>
+                </div>
 
-  <script src="firebase-config.js"></script>
-  <script src="app.js"></script>
-  <script src="auth.js"></script>
-  <script src="map.js"></script>
-  <script src="company.js"></script>
-  <script src="admin.js"></script>
+                <!-- جدول السجل -->
+                <div class="history-section">
+                    <div class="section-header">
+                        <h3>سجل الحركة</h3>
+                        <button class="btn btn-sm" onclick="refreshHistory()">
+                            <i class="fas fa-sync"></i> تحديث
+                        </button>
+                    </div>
+                    <div id="history-table" class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>المركبة</th>
+                                    <th>السائق</th>
+                                    <th>الموقع الحالي</th>
+                                    <th>الوقت</th>
+                                    <th>السرعة</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- صفحة لوحة الشركة -->
+        <div id="company-page" class="page">
+            <nav class="navbar">
+                <div class="navbar-left">
+                    <div class="logo-small">
+                        <i class="fas fa-map-location-dot"></i>
+                        GPS-CAR
+                    </div>
+                </div>
+                <div class="navbar-center">
+                    <button class="nav-btn" onclick="showPage('dashboard-page')">
+                        <i class="fas fa-home"></i> الرئيسية
+                    </button>
+                    <button class="nav-btn" onclick="showPage('company-page')">
+                        <i class="fas fa-building"></i> الشركة
+                    </button>
+                    <button class="nav-btn" id="admin-nav-btn-2" onclick="showPage('admin-page')" style="display: none;">
+                        <i class="fas fa-sliders"></i> الإدارة
+                    </button>
+                </div>
+                <div class="navbar-right">
+                    <div class="user-info">
+                        <span id="company-user-name">المستخدم</span>
+                        <button class="nav-btn" onclick="logout()">
+                            <i class="fas fa-sign-out-alt"></i> تسجيل الخروج
+                        </button>
+                    </div>
+                </div>
+            </nav>
+
+            <div class="container">
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="switchTab('drivers-tab')">السائقين</button>
+                    <button class="tab-btn" onclick="switchTab('vehicles-tab')">المركبات</button>
+                    <button class="tab-btn" onclick="switchTab('reports-tab')">التقارير</button>
+                </div>
+
+                <!-- تبويب السائقين -->
+                <div id="drivers-tab" class="tab-content active">
+                    <div class="section-header">
+                        <h3>إدارة السائقين</h3>
+                        <button class="btn btn-primary" onclick="openAddDriverModal()">
+                            <i class="fas fa-plus"></i> إضافة سائق
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>اسم السائق</th>
+                                    <th>رقم الهاتف</th>
+                                    <th>المركبة</th>
+                                    <th>الحالة</th>
+                                    <th>المسافة اليومية</th>
+                                    <th>الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="drivers-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- تبويب المركبات -->
+                <div id="vehicles-tab" class="tab-content">
+                    <div class="section-header">
+                        <h3>إدارة المركبات</h3>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>رقم المركبة</th>
+                                    <th>النوع</th>
+                                    <th>السائق</th>
+                                    <th>الحالة</th>
+                                    <th>آخر موقع</th>
+                                    <th>الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="vehicles-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- تبويب التقارير -->
+                <div id="reports-tab" class="tab-content">
+                    <div class="section-header">
+                        <h3>التقارير</h3>
+                    </div>
+                    <div class="reports-container">
+                        <div class="report-filter">
+                            <select id="report-driver-select">
+                                <option value="">اختر سائق...</option>
+                            </select>
+                            <input type="date" id="report-date">
+                            <button class="btn btn-primary" onclick="generateReport()">
+                                <i class="fas fa-file"></i> إنشاء التقرير
+                            </button>
+                        </div>
+                        <div id="report-content" class="report-content"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- صفحة لوحة الإدارة -->
+        <div id="admin-page" class="page">
+            <nav class="navbar">
+                <div class="navbar-left">
+                    <div class="logo-small">
+                        <i class="fas fa-map-location-dot"></i>
+                        GPS-CAR
+                    </div>
+                </div>
+                <div class="navbar-center">
+                    <button class="nav-btn" onclick="showPage('dashboard-page')">
+                        <i class="fas fa-home"></i> الرئيسية
+                    </button>
+                    <button class="nav-btn" onclick="showPage('company-page')">
+                        <i class="fas fa-building"></i> الشركة
+                    </button>
+                    <button class="nav-btn" onclick="showPage('admin-page')">
+                        <i class="fas fa-sliders"></i> الإدارة
+                    </button>
+                </div>
+                <div class="navbar-right">
+                    <div class="user-info">
+                        <span id="admin-user-name">المستخدم</span>
+                        <button class="nav-btn" onclick="logout()">
+                            <i class="fas fa-sign-out-alt"></i> تسجيل الخروج
+                        </button>
+                    </div>
+                </div>
+            </nav>
+
+            <div class="container">
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="switchAdminTab('tenants-tab')">المستأجرين</button>
+                    <button class="tab-btn" onclick="switchAdminTab('users-tab')">المستخدمين</button>
+                    <button class="tab-btn" onclick="switchAdminTab('settings-tab')">الإعدادات</button>
+                </div>
+
+                <!-- تبويب المستأجرين -->
+                <div id="tenants-tab" class="tab-content active">
+                    <div class="section-header">
+                        <h3>إدارة المستأجرين</h3>
+                        <button class="btn btn-primary" onclick="openAddTenantModal()">
+                            <i class="fas fa-plus"></i> إضافة مستأجر
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>اسم المستأجر</th>
+                                    <th>البريد الإلكتروني</th>
+                                    <th>رقم الهاتف</th>
+                                    <th>عدد المركبات</th>
+                                    <th>حالة الاشتراك</th>
+                                    <th>الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tenants-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- تبويب المستخدمين -->
+                <div id="users-tab" class="tab-content">
+                    <div class="section-header">
+                        <h3>إدارة المستخدمين</h3>
+                        <button class="btn btn-primary" onclick="openAddUserModal()">
+                            <i class="fas fa-plus"></i> إضافة مستخدم
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>اسم المستخدم</th>
+                                    <th>البريد الإلكتروني</th>
+                                    <th>الدور</th>
+                                    <th>المستأجر</th>
+                                    <th>الحالة</th>
+                                    <th>الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- تبويب الإعدادات -->
+                <div id="settings-tab" class="tab-content">
+                    <div class="settings-container">
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="live-tracking" checked>
+                                تفعيل التتبع الحي
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="email-alerts" checked>
+                                تفعيل تنبيهات البريد الإلكتروني
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <label>تحديث بيانات الموقع (ثواني)</label>
+                            <input type="number" id="location-update-interval" value="5" min="1" max="60">
+                        </div>
+                        <button class="btn btn-primary" onclick="saveSettings()">
+                            <i class="fas fa-save"></i> حفظ الإعدادات
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <!-- Modal إضافة سائق -->
+    <div id="add-driver-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>إضافة سائق جديد</h2>
+                <button class="close-btn" onclick="closeModal('add-driver-modal')">&times;</button>
+            </div>
+            <form id="add-driver-form" onsubmit="addDriver(event)">
+                <div class="form-group">
+                    <label for="driver-name">اسم السائق</label>
+                    <input type="text" id="driver-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="driver-phone">رقم الهاتف</label>
+                    <input type="tel" id="driver-phone" required>
+                </div>
+                <div class="form-group">
+                    <label for="driver-vehicle">رقم المركبة</label>
+                    <input type="text" id="driver-vehicle" required>
+                </div>
+                <div class="form-group">
+                    <label for="driver-id">معرف السائق</label>
+                    <input type="text" id="driver-id" required placeholder="مثال: DRV001">
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary">إضافة</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('add-driver-modal')">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal إضافة مستأجر -->
+    <div id="add-tenant-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>إضافة مستأجر جديد</h2>
+                <button class="close-btn" onclick="closeModal('add-tenant-modal')">&times;</button>
+            </div>
+            <form id="add-tenant-form" onsubmit="addTenant(event)">
+                <div class="form-group">
+                    <label for="tenant-name">اسم المستأجر</label>
+                    <input type="text" id="tenant-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="tenant-email">البريد الإلكتروني</label>
+                    <input type="email" id="tenant-email" required>
+                </div>
+                <div class="form-group">
+                    <label for="tenant-phone">رقم الهاتف</label>
+                    <input type="tel" id="tenant-phone" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary">إضافة</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('add-tenant-modal')">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal إضافة مستخدم -->
+    <div id="add-user-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>إضافة مستخدم جديد</h2>
+                <button class="close-btn" onclick="closeModal('add-user-modal')">&times;</button>
+            </div>
+            <form id="add-user-form" onsubmit="addUser(event)">
+                <div class="form-group">
+                    <label for="user-name">اسم المستخدم</label>
+                    <input type="text" id="user-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="user-email">البريد الإلكتروني</label>
+                    <input type="email" id="user-email" required>
+                </div>
+                <div class="form-group">
+                    <label for="user-password">كلمة المرور</label>
+                    <input type="password" id="user-password" required>
+                </div>
+                <div class="form-group">
+                    <label for="user-role">الدور</label>
+                    <select id="user-role" required>
+                        <option value="admin">مسؤول</option>
+                        <option value="company_manager">مدير الشركة</option>
+                        <option value="viewer">عارض</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="user-tenant">المستأجر</label>
+                    <select id="user-tenant"></select>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary">إضافة</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('add-user-modal')">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js"></script>
+
+    <!-- Scripts -->
+    <script src="firebase-config.js"></script>
+    <script src="auth.js"></script>
+    <script src="map.js"></script>
+    <script src="app.js"></script>
+    <script src="company.js"></script>
+    <script src="admin.js"></script>
 </body>
 </html>
